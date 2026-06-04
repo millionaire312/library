@@ -1,0 +1,156 @@
+:root{
+  --brand:#243A6F;
+  --brand2:#4062b2;
+}
+
+body{
+  background:#f6f7fb;
+}
+
+.navbar-brand{
+  font-weight:700;
+  letter-spacing:.2px;
+}
+
+.badge-soft{
+  background: rgba(36,58,111,.08);
+  color: var(--brand);
+  border: 1px solid rgba(36,58,111,.15);
+}
+
+.card{
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 14px;
+}
+
+.card-hover{
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.card-hover:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0,0,0,.08);
+}
+
+.btn-brand{
+  background: var(--brand);
+  color:#fff;
+  border:1px solid var(--brand);
+}
+.btn-brand:hover{
+  background: #1d2f59;
+  border-color:#1d2f59;
+  color:#fff;
+}
+
+.btn-outline-brand{
+  border:1px solid var(--brand);
+  color: var(--brand);
+}
+.btn-outline-brand:hover{
+  background: var(--brand);
+  color:#fff;
+}
+
+.hero{
+  background: linear-gradient(135deg, rgba(36,58,111,.95), rgba(64,98,178,.92));
+  color:#fff;
+  border-radius: 18px;
+  overflow:hidden;
+}
+
+.hero .form-control, .hero .form-select{
+  border:0;
+}
+
+.small-muted{
+  color: rgba(255,255,255,.75);
+}
+
+.cover{
+  width:100%;
+  height:260px;
+  object-fit:cover;
+  border-radius: 12px;
+  background:#e9ecf4;
+}
+
+.cover-sm{
+  width:100%;
+  height:160px;
+  object-fit:cover;
+  border-radius: 12px;
+  background:#e9ecf4;
+}
+
+.table thead th{
+  font-weight:600;
+  color:#3b3b3b;
+}
+
+.kpi{
+  background:#fff;
+  border:1px solid rgba(0,0,0,.06);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.kpi .num{
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.footer{
+  color:#6c757d;
+}
+
+.page-lock{
+  border:1px dashed rgba(0,0,0,.2);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.page-locked{
+  opacity:.85;
+}
+
+.page-preview{
+  background:#fff;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius: 12px;
+  height: 540px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#6c757d;
+}
+
+.sidebar{
+  background:#fff;
+  border:1px solid rgba(0,0,0,.06);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.sidebar .nav-link{
+  color:#222;
+  border-radius: 10px;
+}
+.sidebar .nav-link.active{
+  background: rgba(36,58,111,.08);
+  color: var(--brand);
+  font-weight:600;
+}
+.badge-new{
+  position:absolute;
+  top:12px;
+  right:12px;
+  background:#198754;
+  color:#fff;
+  font-weight:700;
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:12px;
+  box-shadow: 0 8px 18px rgba(0,0,0,.12);
+}
