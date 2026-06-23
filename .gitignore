@@ -1,3 +1,7 @@
+/storage/app/finik_private.pem
+/storage/app/finik_public.pem
+
+
 /.phpunit.cache
 /public/build
 /public/hot
@@ -33,3 +37,5 @@ yarn-error.log
 
 !/storage/app/public/books/.gitkeep
 !/storage/app/public/covers/.gitkeep
+
+*.tar.gz

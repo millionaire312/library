@@ -15,6 +15,11 @@ class Payment extends Model
         'provider',
         'status',
         'transaction_id',
+	'provider_payment_id',
+	'payment_url',
+	'request_payload',
+	'response_payload',
+	'paid_at',
     ];
 
     public function order()

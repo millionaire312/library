@@ -17,6 +17,9 @@ use App\Http\Controllers\Admin\ActivityLogController;
 use App\Models\Category;
 use App\Http\Controllers\Admin\PaymentJournalController;
 
+use App\Services\FinikService;
+
+
 Route::get('/', function (Request $request) {
     $categories = Category::with(['children' => function ($query) {
         $query->orderBy('sort_order')->orderBy('name');
@@ -125,7 +128,7 @@ Route::post('/books/{book}/buy', function (Request $request, Book $book) {
 			'guest_email' => auth()->check() ? null : $request->guest_email,
 			'guest_phone' => auth()->check() ? null : $request->guest_phone,
 			'access_token' => Str::random(40),
-			'payment_method' => 'qr_demo',
+			'payment_method' => 'qr_finik',
 			'total' => $total,
 			'status' => 'pending',
 		]);
@@ -179,6 +182,121 @@ Route::post('/orders/{order}/pay', function (Order $order) {
 
 		return back()->with('success', 'Оплата прошла успешно.');
 	})->middleware('auth')->name('orders.pay');
+
+Route::post('/orders/{order}/finik-pay/{token}', function (Order $order, string $token, FinikService $finikService) {
+
+\Log::info('FINIK PAY BUTTON CLICKED', [
+    'order_id' => $order->id,
+    'order_status' => $order->status,
+    'token_ok' => $order->access_token && hash_equals($order->access_token, $token),
+]);
+
+
+    if (!$order->access_token || !hash_equals($order->access_token, $token)) {
+        abort(403);
+    }
+
+    if ($order->status === 'paid') {
+        return redirect()->route('orders.qr-pay', [$order, $token])
+            ->with('success', 'Заказ уже оплачен.');
+    }
+
+    $result = $finikService->createPayment($order, $token);
+
+    Payment::create([
+        'order_id' => $order->id,
+        'amount' => $order->total,
+        'provider' => 'finik',
+        'provider_payment_id' => $result['payment_id'],
+        'payment_url' => $result['payment_url'],
+        'status' => 'pending',
+        'transaction_id' => $result['payment_id'],
+        'request_payload' => $result['request_payload'],
+        'response_payload' => $result['response_payload'],
+    ]);
+
+    if (!$result['payment_url']) {
+        return back()->with('error', 'Finik не вернул ссылку на оплату.');
+    }
+
+    return redirect()->away($result['payment_url']);
+})->name('orders.finik-pay');
+
+Route::post('/webhooks/finik', function (Request $request) {
+
+\Log::info('FINIK WEBHOOK RECEIVED', [
+    'headers' => $request->headers->all(),
+    'body' => $request->all(),
+    'raw' => $request->getContent(),
+]);
+
+    $payload = $request->all();
+
+    $orderId = data_get($payload, 'fields.order_id')
+        ?? data_get($payload, 'data.additionalData.0.value');
+
+    $status = strtolower((string) data_get($payload, 'status'));
+
+    $transactionId = data_get($payload, 'transactionId')
+        ?? data_get($payload, 'id')
+        ?? data_get($payload, 'fields.paymentId');
+
+    if (!$orderId) {
+        return response()->json(['error' => 'order_id missing'], 400);
+    }
+
+    $order = \App\Models\Order::find($orderId);
+
+    if (!$order) {
+        return response()->json(['error' => 'order not found'], 404);
+    }
+
+    if (in_array($status, ['succeeded', 'success', 'paid'], true)) {
+        $order->update([
+            'status' => 'paid',
+        ]);
+
+        \App\Models\Payment::updateOrCreate(
+            [
+                'order_id' => $order->id,
+                'provider' => 'finik',
+                'transaction_id' => $transactionId,
+            ],
+            [
+                'amount' => $order->total,
+                'status' => 'paid',
+                'provider_payment_id' => data_get($payload, 'fields.paymentId'),
+                'response_payload' => json_encode($payload, JSON_UNESCAPED_UNICODE),
+                'paid_at' => now(),
+            ]
+        );
+
+        return response()->json(['ok' => true]);
+    }
+
+    if (in_array($status, ['failed', 'failure', 'declined', 'cancelled'], true)) {
+        \App\Models\Payment::updateOrCreate(
+            [
+                'order_id' => $order->id,
+                'provider' => 'finik',
+                'transaction_id' => $transactionId,
+            ],
+            [
+                'amount' => $order->total,
+                'status' => 'failed',
+                'provider_payment_id' => data_get($payload, 'fields.paymentId'),
+                'response_payload' => json_encode($payload, JSON_UNESCAPED_UNICODE),
+            ]
+        );
+
+        return response()->json(['ok' => true]);
+    }
+
+    return response()->json([
+        'ok' => true,
+        'status' => $status,
+    ]);
+})->name('finik.webhook');
 
 Route::get('/orders/{order}/download/{item}', function (\App\Models\Order $order, \App\Models\OrderItem $item) {
 
@@ -326,6 +444,50 @@ Route::get('/books/{book}/preview', function (Book $book) {
 	})->name('books.preview');
 
 Route::get('/orders/{order}/qr-pay/{token}', function (Order $order, string $token) {
+
+    if (!$order->access_token || !hash_equals($order->access_token, $token)) {
+        abort(403);
+    }
+
+    $order->load(['items.book', 'payments']);
+
+    $finikPayment = $order->payments()
+        ->where('provider', 'finik')
+        ->latest()
+        ->first();
+
+    if ($order->status !== 'paid' && !$finikPayment) {
+
+        $finikService = app(\App\Services\FinikService::class);
+
+        $result = $finikService->createPayment($order, $token);
+
+        Payment::create([
+            'order_id' => $order->id,
+            'amount' => $order->total,
+            'provider' => 'finik',
+            'provider_payment_id' => $result['payment_id'],
+            'payment_url' => $result['payment_url'],
+            'status' => 'pending',
+            'transaction_id' => $result['payment_id'],
+            'request_payload' => $result['request_payload'],
+            'response_payload' => $result['response_payload'],
+        ]);
+
+        $finikPayment = $order->payments()
+            ->where('provider', 'finik')
+            ->latest()
+            ->first();
+    }
+
+    return view('orders.qr-pay', [
+        'order' => $order,
+        'finikPayment' => $finikPayment,
+    ]);
+
+})->name('orders.qr-pay');
+
+/*Route::get('/orders/{order}/qr-pay/{token}', function (Order $order, string $token) {
 		
 		if (!$order->access_token || !hash_equals($order->access_token, $token)) {
 			abort(403);
@@ -338,7 +500,7 @@ Route::get('/orders/{order}/qr-pay/{token}', function (Order $order, string $tok
 		$order->load('items.book');
 
 		return view('orders.qr-pay', compact('order'));
-	})->name('orders.qr-pay');
+	})->name('orders.qr-pay');*/
 
 Route::post('/orders/{order}/qr-confirm/{token}', function (Order $order, string $token) {
 		

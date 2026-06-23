@@ -63,18 +63,17 @@
 					<strong>Итого: {{ number_format($order->total, 2, '.', ' ') }} сом</strong>
 				</div>
 
-				<div>
-					@if($order->status !== 'paid')
-						<form method="POST" action="{{ route('orders.pay', $order) }}">
-							@csrf
-							<button type="submit" class="btn btn-brand">
-								Оплатить
-							</button>
-						</form>
-					@else
-						<span class="text-success fw-semibold">Оплата подтверждена</span>
-					@endif
-				</div>
+<div>
+    @if($order->status !== 'paid' && $order->access_token)
+        <a href="{{ route('orders.qr-pay', [$order, $order->access_token]) }}"
+           class="btn btn-brand">
+            Продолжить оплату
+        </a>
+    @elseif($order->status === 'paid')
+        <span class="text-success fw-semibold">Оплата подтверждена</span>
+    @endif
+</div>
+
 			</div>
 
 			@if($order->payments->count())

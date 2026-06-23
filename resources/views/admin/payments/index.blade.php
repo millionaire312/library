@@ -100,7 +100,13 @@
                                 <span class="badge bg-success">Оплачен</span>
                             @else
                                 <span class="badge bg-warning text-dark">Ожидает</span>
-                            @endif
+		                    @if($order->access_token)
+    					<div class="mt-2">
+        				    <a href="{{ route('orders.qr-pay', [$order, $order->access_token]) }}"
+				            class="btn btn-sm btn-outline-primary" target="_blank">Продолжить оплату</a>
+				        </div>
+				    @endif        
+			    @endif
                         </td>
 
                         <td>
